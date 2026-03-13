@@ -46,9 +46,10 @@ fun PicBrowserApp(
     ) {
         composable(Screen.Grid.route) {
             GridScreen(
-                onImageClick = { imageId, folderId ->
+                onImageClick = { imageId, folderId, directoryPath ->
                     val folderIdParam = folderId?.toString() ?: "-1"
-                    navController.navigate("${Screen.PhotoViewer.route}/$imageId?folderId=$folderIdParam&showFavorites=false")
+                    val dirPathParam = directoryPath?.let { android.net.Uri.encode(it) } ?: ""
+                    navController.navigate("${Screen.PhotoViewer.route}/$imageId?folderId=$folderIdParam&showFavorites=false&directoryPath=$dirPathParam")
                 },
                 onNavigateToFavorites = {
                     navController.navigate(Screen.Favorites.route)
@@ -57,7 +58,7 @@ fun PicBrowserApp(
         }
 
         composable(
-            route = "${Screen.PhotoViewer.route}/{imageId}?folderId={folderId}&showFavorites={showFavorites}",
+            route = "${Screen.PhotoViewer.route}/{imageId}?folderId={folderId}&showFavorites={showFavorites}&directoryPath={directoryPath}",
             arguments = listOf(
                 navArgument("imageId") { type = NavType.LongType },
                 navArgument("folderId") {
@@ -67,6 +68,10 @@ fun PicBrowserApp(
                 navArgument("showFavorites") {
                     type = NavType.BoolType
                     defaultValue = false
+                },
+                navArgument("directoryPath") {
+                    type = NavType.StringType
+                    defaultValue = ""
                 }
             )
         ) { backStackEntry ->
@@ -74,11 +79,15 @@ fun PicBrowserApp(
             val folderIdArg = backStackEntry.arguments?.getLong("folderId")
             val folderId = if (folderIdArg == -1L) null else folderIdArg
             val showFavorites = backStackEntry.arguments?.getBoolean("showFavorites") ?: false
+            val directoryPath = backStackEntry.arguments?.getString("directoryPath")
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { android.net.Uri.decode(it) }
 
             PhotoViewerScreen(
                 imageId = imageId,
                 folderId = folderId,
                 showFavorites = showFavorites,
+                directoryPath = directoryPath,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -86,7 +95,7 @@ fun PicBrowserApp(
         composable(Screen.Favorites.route) {
             FavoritesScreen(
                 onImageClick = { imageId ->
-                    navController.navigate("${Screen.PhotoViewer.route}/$imageId?folderId=-1&showFavorites=true")
+                    navController.navigate("${Screen.PhotoViewer.route}/$imageId?folderId=-1&showFavorites=true&directoryPath=")
                 },
                 onNavigateBack = { navController.popBackStack() }
             )

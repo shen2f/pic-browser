@@ -6,11 +6,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.picbrowser.data.model.ImageItem
-import com.example.picbrowser.data.repository.FavoritesRepository
 import com.example.picbrowser.data.repository.ImageRepository
+import com.example.picbrowser.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class FavoritesUiState(
@@ -23,7 +24,7 @@ data class FavoritesUiState(
 class FavoritesViewModel(
     application: Application,
     private val imageRepository: ImageRepository,
-    private val favoritesRepository: FavoritesRepository
+    private val settingsRepository: SettingsRepository
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(FavoritesUiState())
@@ -38,7 +39,7 @@ class FavoritesViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             // Load favorite IDs and all images
-            val favoriteIds = favoritesRepository.getFavoriteIdsSync()
+            val favoriteIds = settingsRepository.favoriteIds.first()
             val allImages = imageRepository.getAllImages()
             val favoriteImages = allImages.filter { it.id in favoriteIds }
 
@@ -56,7 +57,7 @@ class FavoritesViewModel(
 
     fun toggleFavorite(imageId: Long) {
         viewModelScope.launch {
-            favoritesRepository.toggleFavorite(imageId)
+            settingsRepository.toggleFavorite(imageId)
             // Reload after toggle
             loadFavorites()
         }
@@ -83,7 +84,7 @@ class FavoritesViewModel(
                     return FavoritesViewModel(
                         application,
                         ImageRepository(application.contentResolver),
-                        FavoritesRepository(application)
+                        SettingsRepository(application)
                     ) as T
                 }
             }

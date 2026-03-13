@@ -55,6 +55,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.picbrowser.data.model.ImageItem
 import com.example.picbrowser.ui.components.ColumnSizeSelector
+import com.example.picbrowser.ui.components.DirectoryPicker
 import com.example.picbrowser.ui.components.FolderDrawer
 import com.example.picbrowser.ui.components.ImageGridItem
 import com.example.picbrowser.ui.viewmodel.GridViewModel
@@ -63,7 +64,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GridScreen(
-    onImageClick: (Long, Long?) -> Unit,
+    onImageClick: (Long, Long?, String?) -> Unit,
     onNavigateToFavorites: () -> Unit
 ) {
     val context = LocalContext.current
@@ -79,6 +80,7 @@ fun GridScreen(
     var longPressedImage by remember { mutableStateOf<ImageItem?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var imageToDelete by remember { mutableStateOf<ImageItem?>(null) }
+    var showDirectoryPicker by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -112,6 +114,8 @@ fun GridScreen(
             FolderDrawer(
                 folders = uiState.folders,
                 selectedFolderId = uiState.selectedFolderId,
+                customDirectories = uiState.customDirectories,
+                selectedDirectoryPath = uiState.selectedDirectoryPath,
                 onFolderSelected = { folderId ->
                     viewModel.loadImages(folderId)
                     scope.launch { drawerState.close() }
@@ -123,6 +127,16 @@ fun GridScreen(
                 onAllPhotosSelected = {
                     viewModel.loadImages(null)
                     scope.launch { drawerState.close() }
+                },
+                onAddDirectoryClicked = {
+                    showDirectoryPicker = true
+                },
+                onDirectorySelected = { path ->
+                    viewModel.loadImagesFromDirectory(path)
+                    scope.launch { drawerState.close() }
+                },
+                onRemoveDirectory = { directoryId ->
+                    viewModel.removeCustomDirectory(directoryId)
                 }
             )
         }
@@ -132,7 +146,12 @@ fun GridScreen(
                 TopAppBar(
                     title = {
                         val selectedFolder = uiState.folders.find { it.id == uiState.selectedFolderId }
-                        Text(selectedFolder?.name ?: "All Photos")
+                        val selectedDirectory = uiState.customDirectories.find { it.path == uiState.selectedDirectoryPath }
+                        Text(
+                            selectedDirectory?.name
+                                ?: selectedFolder?.name
+                                ?: "All Photos"
+                        )
                     },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
@@ -186,7 +205,7 @@ fun GridScreen(
                                 ImageGridItem(
                                     uri = image.uri,
                                     isFavorite = viewModel.isFavorite(image.id),
-                                    onClick = { onImageClick(image.id, uiState.selectedFolderId) },
+                                    onClick = { onImageClick(image.id, uiState.selectedFolderId, uiState.selectedDirectoryPath) },
                                     onLongClick = { longPressedImage = image },
                                     modifier = Modifier.animateItemPlacement()
                                 )
@@ -225,6 +244,18 @@ fun GridScreen(
             onDismiss = {
                 showDeleteDialog = false
                 imageToDelete = null
+            }
+        )
+    }
+
+    if (showDirectoryPicker) {
+        DirectoryPicker(
+            onDirectorySelected = { path ->
+                viewModel.addCustomDirectory(path)
+                showDirectoryPicker = false
+            },
+            onDismiss = {
+                showDirectoryPicker = false
             }
         )
     }

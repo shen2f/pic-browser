@@ -59,12 +59,13 @@ fun PhotoViewerScreen(
     imageId: Long,
     folderId: Long?,
     showFavorites: Boolean = false,
+    directoryPath: String? = null,
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
     val viewModel: PhotoViewerViewModel = viewModel(
-        factory = PhotoViewerViewModel.Factory(application, imageId, folderId, showFavorites)
+        factory = PhotoViewerViewModel.Factory(application, imageId, folderId, showFavorites, directoryPath)
     )
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }

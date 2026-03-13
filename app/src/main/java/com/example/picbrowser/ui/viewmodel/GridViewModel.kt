@@ -5,14 +5,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.picbrowser.data.model.CustomDirectory
 import com.example.picbrowser.data.model.Folder
 import com.example.picbrowser.data.model.ImageItem
-import com.example.picbrowser.data.repository.FavoritesRepository
 import com.example.picbrowser.data.repository.ImageRepository
+import com.example.picbrowser.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class GridUiState(
@@ -21,13 +21,15 @@ data class GridUiState(
     val selectedFolderId: Long? = null,
     val isLoading: Boolean = true,
     val columns: Int = 3,
-    val favoriteIds: Set<Long> = emptySet()
+    val favoriteIds: Set<Long> = emptySet(),
+    val customDirectories: List<CustomDirectory> = emptyList(),
+    val selectedDirectoryPath: String? = null
 )
 
 class GridViewModel(
     application: Application,
     private val imageRepository: ImageRepository,
-    private val favoritesRepository: FavoritesRepository
+    private val settingsRepository: SettingsRepository
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(GridUiState())
@@ -36,6 +38,7 @@ class GridViewModel(
     init {
         loadFolders()
         loadFavorites()
+        loadCustomDirectories()
     }
 
     fun loadFolders() {
@@ -47,7 +50,7 @@ class GridViewModel(
                 isLoading = false
             )
             // Load all images by default if no folder selected
-            if (_uiState.value.selectedFolderId == null) {
+            if (_uiState.value.selectedFolderId == null && _uiState.value.selectedDirectoryPath == null) {
                 loadImages(null)
             }
         }
@@ -55,7 +58,11 @@ class GridViewModel(
 
     fun loadImages(folderId: Long?) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, selectedFolderId = folderId)
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                selectedFolderId = folderId,
+                selectedDirectoryPath = null
+            )
             val images = if (folderId == null) {
                 imageRepository.getAllImages()
             } else {
@@ -70,8 +77,16 @@ class GridViewModel(
 
     private fun loadFavorites() {
         viewModelScope.launch {
-            favoritesRepository.favoriteIds.collect { favoriteIds ->
+            settingsRepository.favoriteIds.collect { favoriteIds ->
                 _uiState.value = _uiState.value.copy(favoriteIds = favoriteIds)
+            }
+        }
+    }
+
+    private fun loadCustomDirectories() {
+        viewModelScope.launch {
+            settingsRepository.customDirectories.collect { directories ->
+                _uiState.value = _uiState.value.copy(customDirectories = directories)
             }
         }
     }
@@ -82,7 +97,7 @@ class GridViewModel(
 
     fun toggleFavorite(imageId: Long) {
         viewModelScope.launch {
-            favoritesRepository.toggleFavorite(imageId)
+            settingsRepository.toggleFavorite(imageId)
         }
     }
 
@@ -100,6 +115,51 @@ class GridViewModel(
         return _uiState.value.favoriteIds.contains(imageId)
     }
 
+    fun addCustomDirectory(path: String) {
+        android.util.Log.d("GridViewModel", "addCustomDirectory called with path: $path")
+        viewModelScope.launch {
+            android.util.Log.d("GridViewModel", "About to scanDirectory...")
+            val directory = imageRepository.scanDirectory(path)
+            android.util.Log.d("GridViewModel", "scanDirectory result: $directory")
+            directory?.let {
+                android.util.Log.d("GridViewModel", "Adding directory to settings: ${it.name}, ${it.imageCount} photos")
+                settingsRepository.addCustomDirectory(it)
+            }
+        }
+    }
+
+    fun removeCustomDirectory(directoryId: Long) {
+        viewModelScope.launch {
+            settingsRepository.removeCustomDirectory(directoryId)
+            // 如果正在浏览被删除的目录，切换回所有照片
+            if (_uiState.value.selectedDirectoryPath != null) {
+                val dir = _uiState.value.customDirectories.find { it.id == directoryId }
+                if (dir?.path == _uiState.value.selectedDirectoryPath) {
+                    loadImages(null)
+                }
+            }
+        }
+    }
+
+    fun loadImagesFromDirectory(path: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                selectedFolderId = null,
+                selectedDirectoryPath = path
+            )
+            val images = imageRepository.getImagesFromDirectory(path)
+            _uiState.value = _uiState.value.copy(
+                images = images,
+                isLoading = false
+            )
+        }
+    }
+
+    fun isCustomDirectorySelected(path: String): Boolean {
+        return _uiState.value.selectedDirectoryPath == path
+    }
+
     companion object {
         fun Factory(application: Application): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
@@ -108,7 +168,7 @@ class GridViewModel(
                     return GridViewModel(
                         application,
                         ImageRepository(application.contentResolver),
-                        FavoritesRepository(application)
+                        SettingsRepository(application)
                     ) as T
                 }
             }
