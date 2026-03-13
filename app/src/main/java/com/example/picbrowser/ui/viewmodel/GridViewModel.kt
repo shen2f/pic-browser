@@ -38,7 +38,7 @@ class GridViewModel(
         loadFavorites()
     }
 
-    private fun loadFolders() {
+    fun loadFolders() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             val folders = imageRepository.getFolders()
@@ -46,8 +46,10 @@ class GridViewModel(
                 folders = folders,
                 isLoading = false
             )
-            // Load all images by default
-            loadImages(null)
+            // Load all images by default if no folder selected
+            if (_uiState.value.selectedFolderId == null) {
+                loadImages(null)
+            }
         }
     }
 

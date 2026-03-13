@@ -17,16 +17,17 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             MediaStore.Images.Media.BUCKET_ID,
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DATE_TAKEN
+            MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATE_ADDED
         )
 
-        val selection = "${MediaStore.Images.Media.DATE_TAKEN} IS NOT NULL"
-        val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+        // Remove DATE_TAKEN IS NOT NULL constraint to include all images
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
         contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
-            selection,
+            null,
             null,
             sortOrder
         )?.use { cursor ->
@@ -72,6 +73,7 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATE_ADDED,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.WIDTH,
             MediaStore.Images.Media.HEIGHT,
@@ -81,7 +83,7 @@ class ImageRepository(private val contentResolver: ContentResolver) {
 
         val selection = "${MediaStore.Images.Media.BUCKET_ID} = ?"
         val selectionArgs = arrayOf(bucketId.toString())
-        val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
         contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
@@ -130,6 +132,7 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATE_ADDED,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.WIDTH,
             MediaStore.Images.Media.HEIGHT,
@@ -137,7 +140,7 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME
         )
 
-        val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
         contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,

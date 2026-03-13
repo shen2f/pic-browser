@@ -85,7 +85,7 @@ fun GridScreen(
     ) { granted ->
         hasPermission = granted
         if (granted) {
-            // Reload data when permission granted
+            viewModel.loadFolders()
         }
     }
 
