@@ -60,7 +60,7 @@ fun PhotoViewerScreen(
     folderId: Long?,
     showFavorites: Boolean = false,
     directoryPath: String? = null,
-    onNavigateBack: () -> Unit
+    onNavigateBack: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -70,6 +70,7 @@ fun PhotoViewerScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var imageToDelete by remember { mutableStateOf<ImageItem?>(null) }
+    var hasDeletedImage by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier
@@ -134,7 +135,7 @@ fun PhotoViewerScreen(
                                     .height(56.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(onClick = onNavigateBack) {
+                                IconButton(onClick = { onNavigateBack(hasDeletedImage) }) {
                                     Icon(
                                         imageVector = Icons.Default.ArrowBack,
                                         contentDescription = "Back",
@@ -221,8 +222,15 @@ fun PhotoViewerScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteImage(imageToDelete!!) {
-                            onNavigateBack()
+                        viewModel.deleteImage(imageToDelete!!) { success ->
+                            if (success) {
+                                hasDeletedImage = true
+                                // 检查是否还有图片，如果没有就返回
+                                val currentImages = viewModel.uiState.value.images
+                                if (currentImages.isEmpty()) {
+                                    onNavigateBack(true)
+                                }
+                            }
                         }
                         showDeleteDialog = false
                     }

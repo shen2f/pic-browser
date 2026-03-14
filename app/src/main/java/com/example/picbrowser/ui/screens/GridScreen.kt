@@ -65,7 +65,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun GridScreen(
     onImageClick: (Long, Long?, String?) -> Unit,
-    onNavigateToFavorites: () -> Unit
+    onNavigateToFavorites: () -> Unit,
+    shouldRefresh: Boolean = false,
+    onRefreshConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -81,6 +83,20 @@ fun GridScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var imageToDelete by remember { mutableStateOf<ImageItem?>(null) }
     var showDirectoryPicker by remember { mutableStateOf(false) }
+
+    // 当从 PhotoViewer 返回且需要刷新时，重新加载图片
+    LaunchedEffect(shouldRefresh) {
+        if (shouldRefresh) {
+            val selectedDirPath = uiState.selectedDirectoryPath
+            if (selectedDirPath != null) {
+                viewModel.loadImagesFromDirectory(selectedDirPath)
+            } else {
+                viewModel.loadImages(uiState.selectedFolderId)
+            }
+            viewModel.loadFolders()
+            onRefreshConsumed()
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()

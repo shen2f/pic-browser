@@ -44,7 +44,7 @@ fun PicBrowserApp(
         navController = navController,
         startDestination = Screen.Grid.route
     ) {
-        composable(Screen.Grid.route) {
+        composable(Screen.Grid.route) { backStackEntry ->
             GridScreen(
                 onImageClick = { imageId, folderId, directoryPath ->
                     val folderIdParam = folderId?.toString() ?: "-1"
@@ -53,6 +53,10 @@ fun PicBrowserApp(
                 },
                 onNavigateToFavorites = {
                     navController.navigate(Screen.Favorites.route)
+                },
+                shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("shouldRefresh") ?: false,
+                onRefreshConsumed = {
+                    backStackEntry.savedStateHandle["shouldRefresh"] = false
                 }
             )
         }
@@ -88,16 +92,26 @@ fun PicBrowserApp(
                 folderId = folderId,
                 showFavorites = showFavorites,
                 directoryPath = directoryPath,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { imageDeleted ->
+                    if (imageDeleted) {
+                        // 通知上一个页面需要刷新
+                        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                    }
+                    navController.popBackStack()
+                }
             )
         }
 
-        composable(Screen.Favorites.route) {
+        composable(Screen.Favorites.route) { backStackEntry ->
             FavoritesScreen(
                 onImageClick = { imageId ->
                     navController.navigate("${Screen.PhotoViewer.route}/$imageId?folderId=-1&showFavorites=true&directoryPath=")
                 },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("shouldRefresh") ?: false,
+                onRefreshConsumed = {
+                    backStackEntry.savedStateHandle["shouldRefresh"] = false
+                }
             )
         }
     }

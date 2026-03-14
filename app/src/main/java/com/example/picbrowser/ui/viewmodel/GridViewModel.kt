@@ -105,8 +105,29 @@ class GridViewModel(
         viewModelScope.launch {
             val success = imageRepository.deleteImage(imageItem)
             if (success) {
-                // Reload images and folders
-                loadFolders()
+                // 直接从当前列表中移除该图片，立即刷新 UI
+                val currentImages = _uiState.value.images.toMutableList()
+                val index = currentImages.indexOfFirst { it.id == imageItem.id }
+                if (index >= 0) {
+                    currentImages.removeAt(index)
+                    _uiState.value = _uiState.value.copy(images = currentImages)
+                }
+
+                // 如果是在自定义目录中，同时更新该自定义目录的信息
+                val currentPath = _uiState.value.selectedDirectoryPath
+                if (currentPath != null) {
+                    // 短暂延迟后更新目录信息
+                    kotlinx.coroutines.delay(200)
+                    imageRepository.scanDirectory(currentPath)?.let { updatedDir ->
+                        val existingDir = _uiState.value.customDirectories.find { it.path == currentPath }
+                        if (existingDir != null) {
+                            settingsRepository.updateCustomDirectory(updatedDir.copy(id = existingDir.id))
+                        }
+                    }
+                } else {
+                    // 否则重新加载文件夹
+                    loadFolders()
+                }
             }
         }
     }

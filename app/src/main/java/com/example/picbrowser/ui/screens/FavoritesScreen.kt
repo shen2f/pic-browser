@@ -51,7 +51,9 @@ import com.example.picbrowser.ui.viewmodel.FavoritesViewModel
 @Composable
 fun FavoritesScreen(
     onImageClick: (Long) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    shouldRefresh: Boolean = false,
+    onRefreshConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -62,6 +64,14 @@ fun FavoritesScreen(
     var longPressedImage by remember { mutableStateOf<ImageItem?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var imageToDelete by remember { mutableStateOf<ImageItem?>(null) }
+
+    // 当从 PhotoViewer 返回且需要刷新时，重新加载图片
+    androidx.compose.runtime.LaunchedEffect(shouldRefresh) {
+        if (shouldRefresh) {
+            viewModel.loadFavorites()
+            onRefreshConsumed()
+        }
+    }
 
     Scaffold(
         topBar = {

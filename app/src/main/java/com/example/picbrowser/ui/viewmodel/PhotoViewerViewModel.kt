@@ -94,7 +94,7 @@ class PhotoViewerViewModel(
         }
     }
 
-    fun deleteImage(imageItem: ImageItem, onDeleted: () -> Unit) {
+    fun deleteImage(imageItem: ImageItem, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val success = imageRepository.deleteImage(imageItem)
             if (success) {
@@ -104,10 +104,10 @@ class PhotoViewerViewModel(
                 if (index >= 0) {
                     currentImages.removeAt(index)
                     _uiState.value = _uiState.value.copy(images = currentImages)
-                    if (currentImages.isEmpty()) {
-                        onDeleted()
-                    }
                 }
+                onResult(true)
+            } else {
+                onResult(false)
             }
         }
     }

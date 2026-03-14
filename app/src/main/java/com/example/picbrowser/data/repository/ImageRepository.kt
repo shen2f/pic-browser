@@ -187,7 +187,22 @@ class ImageRepository(private val contentResolver: ContentResolver) {
 
     suspend fun deleteImage(imageItem: ImageItem): Boolean = withContext(Dispatchers.IO) {
         try {
-            contentResolver.delete(imageItem.uri, null, null) > 0
+            val uri = imageItem.uri
+            var deleted = false
+            if (uri.scheme == "file") {
+                // 对于 file:// 格式的 Uri，直接删除文件
+                val filePath = uri.path
+                if (filePath != null) {
+                    val file = java.io.File(filePath)
+                    if (file.exists()) {
+                        deleted = file.delete()
+                    }
+                }
+            } else {
+                // 对于 content:// 格式的 Uri，使用 ContentResolver 删除
+                deleted = contentResolver.delete(uri, null, null) > 0
+            }
+            deleted
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -220,12 +235,10 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             }
         }
 
-        // File API 失败，尝试用 MediaStore 查询该目录下的图片
-        android.util.Log.d("ImageRepository", "Trying MediaStore query...")
+        // 后尝试用 MediaStore 查询该目录下的图片
         val imagesFromMediaStore = getImagesFromDirectoryViaMediaStore(directoryPath)
-        android.util.Log.d("ImageRepository", "MediaStore found ${imagesFromMediaStore.size} images")
-
         if (imagesFromMediaStore.isNotEmpty()) {
+            android.util.Log.d("ImageRepository", "MediaStore found ${imagesFromMediaStore.size} images")
             return@withContext com.example.picbrowser.data.model.CustomDirectory(
                 path = directoryPath,
                 name = java.io.File(directoryPath).name,
@@ -245,7 +258,7 @@ class ImageRepository(private val contentResolver: ContentResolver) {
     suspend fun getImagesFromDirectory(directoryPath: String): List<ImageItem> = withContext(Dispatchers.IO) {
         android.util.Log.d("ImageRepository", "Loading images from: $directoryPath")
 
-        // 先尝试 File API
+        // 先尝试File API
         val directory = java.io.File(directoryPath)
         if (directory.exists() && directory.isDirectory) {
             val files = directory.listFiles()
@@ -271,9 +284,14 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             }
         }
 
-        // 回退到 MediaStore
-        android.util.Log.d("ImageRepository", "Falling back to MediaStore")
-        getImagesFromDirectoryViaMediaStore(directoryPath)
+        // 后尝试 MediaStore（获取 content:// Uri）
+        val mediaStoreImages = getImagesFromDirectoryViaMediaStore(directoryPath)
+        if (mediaStoreImages.isNotEmpty()) {
+            android.util.Log.d("ImageRepository", "MediaStore loaded ${mediaStoreImages.size} images")
+            return@withContext mediaStoreImages
+        }
+
+        emptyList()
     }
 
     private suspend fun getImagesFromDirectoryViaMediaStore(directoryPath: String): List<ImageItem> = withContext(Dispatchers.IO) {
