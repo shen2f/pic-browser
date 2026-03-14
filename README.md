@@ -11,6 +11,7 @@ A modern Android photo gallery app built with Jetpack Compose.
 - ❤️ **Favorites**: Mark and view favorite photos
 - 🗑️ **Delete**: Remove photos with confirmation (supports both MediaStore and File API)
 - 📋 **Photo Details**: View file name, date, size, and resolution
+- 🎬 **GIF Support**: Animated GIF playback (including hidden directories)
 - 🎨 **Material Design 3**: Modern UI with dynamic theming
 
 ## Tech Stack
@@ -18,7 +19,7 @@ A modern Android photo gallery app built with Jetpack Compose.
 - **Language**: Kotlin
 - **UI**: Jetpack Compose + Material3
 - **Architecture**: MVVM + Repository pattern
-- **Image Loading**: Coil
+- **Image Loading**: Coil (with GIF support)
 - **Navigation**: Navigation Compose
 - **Data Storage**: DataStore Preferences
 - **Minimum SDK**: Android 10.0 (API 29)
@@ -59,7 +60,8 @@ app/
 │   │   │   ├── screens/         # Screen composables
 │   │   │   ├── viewmodel/       # ViewModels
 │   │   │   └── navigation/      # Navigation graph
-│   │   └── MainActivity.kt
+│   │   ├── MainActivity.kt
+│   │   └── PicBrowserApplication.kt  # Coil configuration with GIF support
 │   └── res/                     # Resources
 ```
 
