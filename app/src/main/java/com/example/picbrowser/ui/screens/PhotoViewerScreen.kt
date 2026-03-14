@@ -1,11 +1,6 @@
 package com.example.picbrowser.ui.screens
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -32,7 +25,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,18 +34,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import android.app.Application
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import com.example.picbrowser.data.model.ImageItem
+import com.example.picbrowser.ui.components.CustomPhotoPager
 import com.example.picbrowser.ui.components.PhotoDetailSheet
+import com.example.picbrowser.ui.components.ZoomableImage
 import com.example.picbrowser.ui.viewmodel.PhotoViewerViewModel
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoViewerScreen(
     imageId: Long,
@@ -97,27 +87,24 @@ fun PhotoViewerScreen(
                     )
                 }
                 else -> {
-                    val pagerState = rememberPagerState(
-                        initialPage = uiState.initialIndex,
-                        pageCount = { uiState.images.size }
-                    )
-
-                    // Update favorite status when page changes
-                    LaunchedEffect(pagerState.currentPage) {
-                        if (pagerState.currentPage < uiState.images.size) {
-                            viewModel.checkFavorite(uiState.images[pagerState.currentPage].id)
-                        }
-                    }
-
                     Box(modifier = Modifier.fillMaxSize()) {
-                        HorizontalPager(
-                            state = pagerState,
+                        CustomPhotoPager(
+                            pageCount = uiState.images.size,
+                            initialPage = uiState.initialIndex,
+                            onPageChanged = { page ->
+                                viewModel.setCurrentIndex(page)
+                            },
                             modifier = Modifier.fillMaxSize()
-                        ) { page ->
+                        ) { page, onScaleChanged, onHorizontalDrag, onHorizontalDragEnd ->
                             val image = uiState.images[page]
                             ZoomableImage(
                                 imageUri = image.uri,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                onScaleChanged = onScaleChanged,
+                                onHorizontalDrag = onHorizontalDrag,
+                                onHorizontalDragEnd = onHorizontalDragEnd,
+                                onDismiss = { onNavigateBack(hasDeletedImage) },
+                                onShowDetails = { viewModel.toggleDetails() }
                             )
                         }
 
@@ -145,8 +132,8 @@ fun PhotoViewerScreen(
 
                                 Spacer(modifier = Modifier.weight(1f))
 
-                                val currentImage = if (pagerState.currentPage < uiState.images.size) {
-                                    uiState.images[pagerState.currentPage]
+                                val currentImage = if (uiState.currentIndex < uiState.images.size) {
+                                    uiState.images[uiState.currentIndex]
                                 } else null
 
                                 IconButton(
@@ -200,13 +187,11 @@ fun PhotoViewerScreen(
     }
 
     if (uiState.showDetails && uiState.images.isNotEmpty()) {
-        val currentPage = if (uiState.images.size > 0) {
-            // We don't have pager state here, so just use the first image for now
-            // In a real app, we'd need to hoist the pager state
-            uiState.images.firstOrNull()
+        val currentImage = if (uiState.currentIndex < uiState.images.size) {
+            uiState.images[uiState.currentIndex]
         } else null
 
-        currentPage?.let { image ->
+        currentImage?.let { image ->
             PhotoDetailSheet(
                 imageItem = image,
                 onDismiss = { viewModel.hideDetails() }
@@ -225,7 +210,6 @@ fun PhotoViewerScreen(
                         viewModel.deleteImage(imageToDelete!!) { success ->
                             if (success) {
                                 hasDeletedImage = true
-                                // 检查是否还有图片，如果没有就返回
                                 val currentImages = viewModel.uiState.value.images
                                 if (currentImages.isEmpty()) {
                                     onNavigateBack(true)
@@ -243,47 +227,6 @@ fun PhotoViewerScreen(
                     Text("Cancel")
                 }
             }
-        )
-    }
-}
-
-@Composable
-fun ZoomableImage(
-    imageUri: android.net.Uri,
-    modifier: Modifier = Modifier
-) {
-    var scale by remember { mutableStateOf(1f) }
-    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
-
-    Box(
-        modifier = modifier
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown()
-                    do {
-                        val event = awaitPointerEvent()
-                        if (event.changes.size == 2) {
-                            val zoom = event.calculateZoom()
-                            val pan = event.calculatePan()
-                            scale *= zoom
-                            offset = offset + pan
-                        }
-                    } while (event.changes.any { it.pressed })
-                }
-            }
-    ) {
-        AsyncImage(
-            model = imageUri,
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = offset.x,
-                    translationY = offset.y
-                )
         )
     }
 }

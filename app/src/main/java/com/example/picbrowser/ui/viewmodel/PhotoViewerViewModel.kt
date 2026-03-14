@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 data class PhotoViewerUiState(
     val images: List<ImageItem> = emptyList(),
     val initialIndex: Int = 0,
+    val currentIndex: Int = 0,
     val isFavorite: Boolean = false,
     val isLoading: Boolean = true,
     val showDetails: Boolean = false
@@ -71,6 +72,7 @@ class PhotoViewerViewModel(
             _uiState.value = _uiState.value.copy(
                 images = filteredImages,
                 initialIndex = initialIndex,
+                currentIndex = initialIndex,
                 isLoading = false
             )
 
@@ -118,6 +120,13 @@ class PhotoViewerViewModel(
 
     fun hideDetails() {
         _uiState.value = _uiState.value.copy(showDetails = false)
+    }
+
+    fun setCurrentIndex(index: Int) {
+        _uiState.value = _uiState.value.copy(currentIndex = index)
+        if (index < _uiState.value.images.size) {
+            checkFavorite(_uiState.value.images[index].id)
+        }
     }
 
     companion object {
