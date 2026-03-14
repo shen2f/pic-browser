@@ -16,8 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
@@ -46,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.example.picbrowser.ui.viewmodel.SharedTransitionViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -64,6 +69,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GridScreen(
+    sharedViewModel: SharedTransitionViewModel? = null,
+    gridState: LazyGridState = rememberLazyGridState(),
     onImageClick: (Long, Long?, String?) -> Unit,
     onNavigateToFavorites: () -> Unit,
     shouldRefresh: Boolean = false,
@@ -77,6 +84,17 @@ fun GridScreen(
     val uiState by viewModel.uiState.collectAsState()
     val drawerState = rememberDrawerState(androidx.compose.material3.DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    val transitionState by sharedViewModel?.state?.collectAsState() ?: mutableStateOf(null)
+    val thumbnailPositions = remember { mutableMapOf<Long, androidx.compose.ui.geometry.Rect>() }
+
+    LaunchedEffect(transitionState?.targetImageId, uiState.images) {
+        val targetId = transitionState?.targetImageId ?: return@LaunchedEffect
+        val index = uiState.images.indexOfFirst { it.id == targetId }
+        if (index >= 0) {
+            gridState.animateScrollToItem(index)
+        }
+    }
 
     var hasPermission by remember { mutableStateOf(false) }
     var longPressedImage by remember { mutableStateOf<ImageItem?>(null) }
@@ -210,21 +228,37 @@ fun GridScreen(
                         )
                     }
                     else -> {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(uiState.columns),
-                            contentPadding = PaddingValues(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.fillMaxSize()
+                        // Grid 始终保持完全可见，透明度变化由 PhotoViewer 的背景控制
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
                         ) {
-                            items(uiState.images, key = { it.id }) { image ->
-                                ImageGridItem(
-                                    uri = image.uri,
-                                    isFavorite = viewModel.isFavorite(image.id),
-                                    onClick = { onImageClick(image.id, uiState.selectedFolderId, uiState.selectedDirectoryPath) },
-                                    onLongClick = { longPressedImage = image },
-                                    modifier = Modifier.animateItemPlacement()
-                                )
+                            LazyVerticalGrid(
+                                state = gridState,
+                                columns = GridCells.Fixed(uiState.columns),
+                                contentPadding = PaddingValues(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(uiState.images, key = { it.id }) { image ->
+                                    ImageGridItem(
+                                        uri = image.uri,
+                                        isFavorite = viewModel.isFavorite(image.id),
+                                        onClick = {
+                                            // 点击时保存位置
+                                            thumbnailPositions[image.id]?.let { rect ->
+                                                sharedViewModel?.setTargetThumbnailRect(rect)
+                                            }
+                                            onImageClick(image.id, uiState.selectedFolderId, uiState.selectedDirectoryPath)
+                                        },
+                                        onLongClick = { longPressedImage = image },
+                                        onPositioned = { rect ->
+                                            thumbnailPositions[image.id] = rect
+                                        },
+                                        modifier = Modifier.animateItemPlacement()
+                                    )
+                                }
                             }
                         }
                     }

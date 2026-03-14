@@ -33,8 +33,12 @@ fun ZoomableImage(
     onScaleChanged: (isScaled: Boolean) -> Unit = {},
     onHorizontalDrag: (deltaX: Float) -> Unit = {},
     onHorizontalDragEnd: (velocityX: Float, totalDeltaX: Float, durationMs: Long) -> Unit = { _, _, _ -> },
+    onVerticalDragStart: () -> Unit = {},
+    onVerticalDrag: (deltaY: Float, totalY: Float) -> Unit = { _, _ -> },
+    onVerticalDragEnd: (shouldDismiss: Boolean, totalY: Float) -> Unit = { _, _ -> },
     onDismiss: () -> Unit = {},
-    onShowDetails: () -> Unit = {}
+    onShowDetails: () -> Unit = {},
+    onSingleTap: () -> Unit = {}
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -90,7 +94,7 @@ fun ZoomableImage(
                                         dragDirection = if (kotlin.math.abs(dx) > kotlin.math.abs(dy)) {
                                             DragDirection.Horizontal
                                         } else {
-                                            DragDirection.Vertical
+                                            DragDirection.Vertical.also { onVerticalDragStart() }
                                         }
                                     }
                                 }
@@ -102,6 +106,7 @@ fun ZoomableImage(
                                         }
                                         DragDirection.Vertical -> {
                                             offset = offset + delta
+                                            onVerticalDrag(delta.y, totalDragDelta.y)
                                         }
                                         null -> {}
                                     }
@@ -118,6 +123,14 @@ fun ZoomableImage(
                         0f
                     }
 
+                    // 检查是否是单击（无论是否放大都支持）
+                    val isSingleTap = durationMs < 300L &&
+                        kotlin.math.abs(totalDragDelta.x) < touchSlop &&
+                        kotlin.math.abs(totalDragDelta.y) < touchSlop
+                    if (isSingleTap) {
+                        onSingleTap()
+                    }
+
                     if (scale <= 1.01f) {
                         scale = 1f
                         when (dragDirection) {
@@ -125,7 +138,9 @@ fun ZoomableImage(
                                 onHorizontalDragEnd(velocityX, totalDragDelta.x, durationMs)
                             }
                             DragDirection.Vertical -> {
-                                if (totalDragDelta.y > dismissThreshold) {
+                                val shouldDismiss = totalDragDelta.y > dismissThreshold
+                                onVerticalDragEnd(shouldDismiss, totalDragDelta.y)
+                                if (shouldDismiss) {
                                     onDismiss()
                                 } else if (totalDragDelta.y < -dismissThreshold) {
                                     onShowDetails()

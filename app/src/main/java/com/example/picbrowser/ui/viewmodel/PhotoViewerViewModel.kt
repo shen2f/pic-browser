@@ -33,29 +33,47 @@ class PhotoViewerViewModel(
     private val _uiState = MutableStateFlow(PhotoViewerUiState())
     val uiState: StateFlow<PhotoViewerUiState> = _uiState.asStateFlow()
 
-    private val folderId: Long? = savedStateHandle["folderId"]
-    private val initialImageId: Long = savedStateHandle["imageId"] ?: 0L
-    private val showFavorites: Boolean = savedStateHandle["showFavorites"] ?: false
-    private val directoryPath: String? = savedStateHandle["directoryPath"]
+    private var folderId: Long? = savedStateHandle["folderId"]
+    private var initialImageId: Long = savedStateHandle["imageId"] ?: 0L
+    private var showFavorites: Boolean = savedStateHandle["showFavorites"] ?: false
+    private var directoryPath: String? = savedStateHandle["directoryPath"]
 
     init {
         loadImages()
+    }
+
+    fun reloadImages(
+        newImageId: Long,
+        newFolderId: Long?,
+        newShowFavorites: Boolean,
+        newDirectoryPath: String?
+    ) {
+        if (newImageId != initialImageId || newFolderId != folderId ||
+            newShowFavorites != showFavorites || newDirectoryPath != directoryPath) {
+            initialImageId = newImageId
+            folderId = newFolderId
+            showFavorites = newShowFavorites
+            directoryPath = newDirectoryPath
+            loadImages()
+        }
     }
 
     private fun loadImages() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
+            val dirPath = directoryPath
+            val fId = folderId
             val allImages = when {
-                directoryPath != null -> {
+                dirPath != null -> {
                     // 从自定义目录加载
-                    imageRepository.getImagesFromDirectory(directoryPath)
+                    imageRepository.getImagesFromDirectory(dirPath)
                 }
-                folderId == null -> {
+                fId == null -> {
                     imageRepository.getAllImages()
                 }
                 else -> {
-                    imageRepository.getImagesByBucket(folderId)
+                    imageRepository.getImagesByBucket(fId)
                 }
             }
 

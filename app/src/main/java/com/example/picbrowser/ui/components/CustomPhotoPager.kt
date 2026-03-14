@@ -5,6 +5,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -23,6 +24,9 @@ import kotlinx.coroutines.launch
 fun CustomPhotoPager(
     pageCount: Int,
     initialPage: Int = 0,
+    showAdjacentPages: Boolean = true,
+    isDragging: Boolean = false,
+    dragOffset: Float = 0f,
     onPageChanged: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     pageContent: @Composable (page: Int, onScaleChanged: (Boolean) -> Unit, onHorizontalDrag: (Float) -> Unit, onHorizontalDragEnd: (Float, Float, Long) -> Unit) -> Unit
@@ -32,6 +36,14 @@ fun CustomPhotoPager(
     var currentPage by remember { mutableIntStateOf(initialPage) }
     var isScaled by remember { mutableStateOf(false) }
     var containerWidth by remember { mutableFloatStateOf(0f) }
+
+    // 当 initialPage 变化时更新 currentPage
+    LaunchedEffect(initialPage) {
+        if (currentPage != initialPage) {
+            currentPage = initialPage
+            onPageChanged(currentPage)
+        }
+    }
 
     val pageGap = with(LocalDensity.current) { 16.dp.toPx() }
     val pageSwitchThreshold = 0.5f
@@ -118,18 +130,27 @@ fun CustomPhotoPager(
     ) {
         if (containerWidth > 0) {
             val pagesToShow = mutableListOf<Int>()
-            if (currentPage > 0) pagesToShow.add(currentPage - 1)
-            pagesToShow.add(currentPage)
-            if (currentPage < pageCount - 1) pagesToShow.add(currentPage + 1)
+            if (showAdjacentPages) {
+                if (currentPage > 0) pagesToShow.add(currentPage - 1)
+                pagesToShow.add(currentPage)
+                if (currentPage < pageCount - 1) pagesToShow.add(currentPage + 1)
+            } else {
+                pagesToShow.add(currentPage)
+            }
+
+            val isDraggingDown = isDragging && dragOffset > 0f
 
             pagesToShow.forEach { page ->
                 val offsetMultiplier = (page - currentPage).toFloat() + pageOffset.value
+                val isAdjacentPage = page != currentPage
+                val pageAlpha = if (isDraggingDown && isAdjacentPage) 0f else 1f
 
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
                             translationX = offsetMultiplier * (containerWidth + pageGap)
+                            alpha = pageAlpha
                         }
                 ) {
                     pageContent(

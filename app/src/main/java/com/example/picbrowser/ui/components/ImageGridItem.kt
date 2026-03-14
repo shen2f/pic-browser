@@ -16,8 +16,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 
@@ -28,8 +32,11 @@ fun ImageGridItem(
     isFavorite: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onPositioned: (Rect) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+
     Surface(
         modifier = modifier,
         color = MaterialTheme.colorScheme.surfaceVariant
@@ -41,6 +48,17 @@ fun ImageGridItem(
                     onClick = onClick,
                     onLongClick = onLongClick
                 )
+                .onGloballyPositioned { coordinates ->
+                    val position = coordinates.positionInWindow()
+                    val size = coordinates.size
+                    val bounds = Rect(
+                        left = position.x,
+                        top = position.y,
+                        right = position.x + size.width,
+                        bottom = position.y + size.height
+                    )
+                    onPositioned(bounds)
+                }
         ) {
             AsyncImage(
                 model = uri,
