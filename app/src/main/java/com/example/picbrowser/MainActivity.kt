@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -68,6 +69,15 @@ fun PicBrowserOverlayApp(
 
     // 保留原来的导航用于 Favorites 页面
     var useLegacyNavigation by remember { mutableStateOf(false) }
+    var navigateToFavorites by remember { mutableStateOf(false) }
+
+    // 当进入 legacy 模式后，导航到 Favorites 页面
+    LaunchedEffect(useLegacyNavigation) {
+        if (useLegacyNavigation && navigateToFavorites) {
+            navController.navigate(Screen.Favorites.route)
+            navigateToFavorites = false
+        }
+    }
 
     if (useLegacyNavigation) {
         PicBrowserApp(
@@ -78,6 +88,7 @@ fun PicBrowserOverlayApp(
         Box(modifier = Modifier.fillMaxSize()) {
             // Grid 在底层
             GridScreen(
+                isPhotoViewerVisible = showPhotoViewer,
                 onImageClick = { imageId, folderId, directoryPath ->
                     photoViewerParams = PhotoViewerParams(
                         imageId = imageId,
@@ -102,8 +113,8 @@ fun PicBrowserOverlayApp(
                     showPhotoViewer = true
                 },
                 onNavigateToFavorites = {
+                    navigateToFavorites = true
                     useLegacyNavigation = true
-                    navController.navigate(Screen.Favorites.route)
                 },
                 sharedViewModel = sharedViewModel,
                 gridState = gridState,

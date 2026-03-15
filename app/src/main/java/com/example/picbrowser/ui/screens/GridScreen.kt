@@ -21,8 +21,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
@@ -52,7 +50,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import com.example.picbrowser.ui.viewmodel.SharedTransitionViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -68,11 +65,15 @@ import com.example.picbrowser.ui.components.FolderDrawer
 import com.example.picbrowser.ui.components.ImageGridItem
 import com.example.picbrowser.ui.components.SortSelector
 import com.example.picbrowser.ui.viewmodel.GridViewModel
+import com.example.picbrowser.ui.viewmodel.SharedTransitionViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GridScreen(
+    isPhotoViewerVisible: Boolean = false,
     onImageClick: (Long, Long?, String?) -> Unit,
     onDazzleMeClick: (Long, Long?, String?) -> Unit,
     onNavigateToFavorites: () -> Unit,
@@ -98,7 +99,6 @@ fun GridScreen(
         viewModel.setIsLandscape(isLandscape)
     }
 
-    val transitionState by sharedViewModel?.state?.collectAsState() ?: remember { mutableStateOf(null) }
     val thumbnailPositions = remember { mutableMapOf<Long, androidx.compose.ui.geometry.Rect>() }
 
     // 当有图片从 PhotoViewer 删除时，立即从内存列表中移除
@@ -109,12 +109,19 @@ fun GridScreen(
         }
     }
 
-    LaunchedEffect(transitionState?.targetImageId, uiState.images) {
-        val targetId = transitionState?.targetImageId ?: return@LaunchedEffect
-        val index = uiState.images.indexOfFirst { it.id == targetId }
-        if (index >= 0) {
-            gridState.animateScrollToItem(index)
-        }
+    // 只监听 targetImageId 的变化来滚动，避免 dragOffset 触发重组
+    LaunchedEffect(sharedViewModel, uiState.images) {
+        sharedViewModel?.state
+            ?.map { it.targetImageId }
+            ?.distinctUntilChanged()
+            ?.collect { targetId ->
+                if (targetId != null) {
+                    val index = uiState.images.indexOfFirst { it.id == targetId }
+                    if (index >= 0) {
+                        gridState.animateScrollToItem(index)
+                    }
+                }
+            }
     }
 
     var hasPermission by remember { mutableStateOf(false) }

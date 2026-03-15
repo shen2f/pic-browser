@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -121,6 +122,28 @@ fun CustomPhotoPager(
         isScaled = scaled
     }
 
+    // 使用 derivedStateOf 优化 pagesToShow 的计算，避免不必要的重组
+    val pagesToShow by remember(currentPage, pageCount, showAdjacentPages) {
+        derivedStateOf {
+            val list = mutableListOf<Int>()
+            if (showAdjacentPages) {
+                // 预渲染前后各1页，共3页（平衡性能和体验）
+                for (i in -1..1) {
+                    val page = currentPage + i
+                    if (page in 0 until pageCount) {
+                        list.add(page)
+                    }
+                }
+            } else {
+                list.add(currentPage)
+            }
+            list
+        }
+    }
+
+    val pageOffsetValue = pageOffset.value
+    val isDraggingDown = isDragging && dragOffset > 0f
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -129,36 +152,30 @@ fun CustomPhotoPager(
             }
     ) {
         if (containerWidth > 0) {
-            val pagesToShow = mutableListOf<Int>()
-            if (showAdjacentPages) {
-                if (currentPage > 0) pagesToShow.add(currentPage - 1)
-                pagesToShow.add(currentPage)
-                if (currentPage < pageCount - 1) pagesToShow.add(currentPage + 1)
-            } else {
-                pagesToShow.add(currentPage)
-            }
-
-            val isDraggingDown = isDragging && dragOffset > 0f
-
             pagesToShow.forEach { page ->
-                val offsetMultiplier = (page - currentPage).toFloat() + pageOffset.value
-                val isAdjacentPage = page != currentPage
-                val pageAlpha = if (isDraggingDown && isAdjacentPage) 0f else 1f
+                // 使用 key 稳定页面，避免不必要的重组
+                androidx.compose.runtime.key(page) {
+                    val offsetMultiplier = remember(page, currentPage, pageOffsetValue) {
+                        (page - currentPage).toFloat() + pageOffsetValue
+                    }
+                    val isAdjacentPage = page != currentPage
+                    val pageAlpha = if (isDraggingDown && isAdjacentPage) 0f else 1f
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            translationX = offsetMultiplier * (containerWidth + pageGap)
-                            alpha = pageAlpha
-                        }
-                ) {
-                    pageContent(
-                        page,
-                        onScaleChanged,
-                        onHorizontalDrag,
-                        onHorizontalDragEnd
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                translationX = offsetMultiplier * (containerWidth + pageGap)
+                                alpha = pageAlpha
+                            }
+                    ) {
+                        pageContent(
+                            page,
+                            onScaleChanged,
+                            onHorizontalDrag,
+                            onHorizontalDragEnd
+                        )
+                    }
                 }
             }
         }
