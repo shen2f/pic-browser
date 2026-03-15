@@ -21,6 +21,27 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
+class PhotoPagerController {
+    internal var animateToPrevious: (() -> Unit)? = null
+    internal var animateToNext: (() -> Unit)? = null
+    internal var getCurrentPage: (() -> Int)? = null
+    internal var getPageCount: (() -> Int)? = null
+
+    fun animateToPreviousPage() {
+        animateToPrevious?.invoke()
+    }
+
+    fun animateToNextPage() {
+        animateToNext?.invoke()
+    }
+
+    val currentPage: Int
+        get() = getCurrentPage?.invoke() ?: 0
+
+    val pageCount: Int
+        get() = getPageCount?.invoke() ?: 0
+}
+
 @Composable
 fun CustomPhotoPager(
     pageCount: Int,
@@ -29,6 +50,7 @@ fun CustomPhotoPager(
     isDragging: Boolean = false,
     dragOffset: Float = 0f,
     onPageChanged: (Int) -> Unit = {},
+    controller: PhotoPagerController? = null,
     modifier: Modifier = Modifier,
     pageContent: @Composable (page: Int, onScaleChanged: (Boolean) -> Unit, onHorizontalDrag: (Float) -> Unit, onHorizontalDragEnd: (Float, Float, Long) -> Unit) -> Unit
 ) {
@@ -120,6 +142,22 @@ fun CustomPhotoPager(
 
     val onScaleChanged: (Boolean) -> Unit = { scaled ->
         isScaled = scaled
+    }
+
+    // Wire up controller
+    LaunchedEffect(controller, pageCount, currentPage) {
+        controller?.animateToPrevious = {
+            if (currentPage > 0) {
+                animateToPage(currentPage - 1)
+            }
+        }
+        controller?.animateToNext = {
+            if (currentPage < pageCount - 1) {
+                animateToPage(currentPage + 1)
+            }
+        }
+        controller?.getCurrentPage = { currentPage }
+        controller?.getPageCount = { pageCount }
     }
 
     // 使用 derivedStateOf 优化 pagesToShow 的计算，避免不必要的重组

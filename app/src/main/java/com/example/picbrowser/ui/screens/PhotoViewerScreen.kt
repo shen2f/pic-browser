@@ -1,17 +1,21 @@
 package com.example.picbrowser.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -35,12 +39,14 @@ import androidx.compose.ui.Modifier
 import android.app.Application
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.picbrowser.ui.components.CustomPhotoPager
 import com.example.picbrowser.ui.components.PhotoDetailSheet
+import com.example.picbrowser.ui.components.PhotoPagerController
 import com.example.picbrowser.ui.components.ZoomableImage
 import com.example.picbrowser.data.model.ImageItem
 import com.example.picbrowser.ui.viewmodel.PhotoViewerViewModel
@@ -68,6 +74,7 @@ fun PhotoViewerScreen(
     var imageToDelete by remember { mutableStateOf<ImageItem?>(null) }
     var deletedImageId by remember { mutableStateOf<Long?>(null) }
     var showMenuBar by remember { mutableStateOf(true) }
+    val pagerController = remember { PhotoPagerController() }
 
     LaunchedEffect(imageId, folderId, showFavorites, directoryPath, shuffleMode) {
         viewModel.reloadImages(imageId, folderId, showFavorites, directoryPath, shuffleMode)
@@ -115,6 +122,7 @@ fun PhotoViewerScreen(
                                 sharedViewModel.setTargetImageId(uiState.images[page].id)
                             }
                         },
+                        controller = pagerController,
                         modifier = Modifier.fillMaxSize()
                     ) { page, onScaleChanged, onHorizontalDrag, onHorizontalDragEnd ->
                         val image = uiState.images[page]
@@ -141,6 +149,70 @@ fun PhotoViewerScreen(
                             onSingleTap = { showMenuBar = !showMenuBar }
                         )
                     }
+
+                    // Row with 3 parts: left 25%, center 50%, right 25%
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        // Left: 25% - tap to go previous
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .pointerInput(Unit) {
+                                    detectTapGestures {
+                                        pagerController.animateToPreviousPage()
+                                    }
+                                }
+                        )
+
+                        // Center: 50% - let ZoomableImage handle single tap
+                        Box(
+                            modifier = Modifier
+                                .weight(2f)
+                                .fillMaxHeight()
+                        )
+
+                        // Right: 25% - tap to go next
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .pointerInput(Unit) {
+                                    detectTapGestures {
+                                        pagerController.animateToNextPage()
+                                    }
+                                }
+                        )
+                    }
+
+                    // Arrow icons (show/hide with menu)
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Previous",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 16.dp)
+                            .size(36.dp)
+                            .graphicsLayer {
+                                alpha = if (showMenuBar) 0.7f else 0f
+                            }
+                    )
+
+                    Icon(
+                        imageVector = Icons.Default.ArrowForward,
+                        contentDescription = "Next",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 16.dp)
+                            .size(36.dp)
+                            .graphicsLayer {
+                                alpha = if (showMenuBar) 0.7f else 0f
+                            }
+                    )
 
                     // Top Bar overlay - 使用 alpha 渐变避免节点移除导致的手势卡顿
                     Column(
