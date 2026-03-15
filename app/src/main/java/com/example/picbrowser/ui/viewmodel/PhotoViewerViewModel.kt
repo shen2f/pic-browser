@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.picbrowser.data.model.ImageItem
 import com.example.picbrowser.data.repository.ImageRepository
 import com.example.picbrowser.data.repository.SettingsRepository
+import com.example.picbrowser.util.shuffledRandom
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,7 +38,7 @@ class PhotoViewerViewModel(
     private var initialImageId: Long = savedStateHandle["imageId"] ?: 0L
     private var showFavorites: Boolean = savedStateHandle["showFavorites"] ?: false
     private var directoryPath: String? = savedStateHandle["directoryPath"]
-    private var shuffledImages: List<ImageItem>? = savedStateHandle["shuffledImages"]
+    private var shuffleMode: Boolean = savedStateHandle["shuffleMode"] ?: false
 
     init {
         loadImages()
@@ -48,16 +49,16 @@ class PhotoViewerViewModel(
         newFolderId: Long?,
         newShowFavorites: Boolean,
         newDirectoryPath: String?,
-        newShuffledImages: List<ImageItem>? = null
+        newShuffleMode: Boolean = false
     ) {
         if (newImageId != initialImageId || newFolderId != folderId ||
             newShowFavorites != showFavorites || newDirectoryPath != directoryPath ||
-            newShuffledImages != shuffledImages) {
+            newShuffleMode != shuffleMode) {
             initialImageId = newImageId
             folderId = newFolderId
             showFavorites = newShowFavorites
             directoryPath = newDirectoryPath
-            shuffledImages = newShuffledImages
+            shuffleMode = newShuffleMode
             loadImages()
         }
     }
@@ -66,36 +67,43 @@ class PhotoViewerViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
-            val imagesToUse = shuffledImages?.let { shuffled ->
-                // Use provided shuffled list, apply favorites filter if needed
-                if (showFavorites) {
-                    val favoriteIds = settingsRepository.getFavoriteIdsSync()
-                    shuffled.filter { it.id in favoriteIds }
+            // Normal loading path
+            val dirPath = directoryPath
+            val fId = folderId
+            val allImages = when {
+                dirPath != null -> {
+                    imageRepository.getImagesFromDirectory(dirPath)
+                }
+                fId == null -> {
+                    imageRepository.getAllImages()
+                }
+                else -> {
+                    imageRepository.getImagesByBucket(fId)
+                }
+            }
+
+            // Apply favorites filter if needed
+            val filteredImages = if (showFavorites) {
+                val favoriteIds = settingsRepository.getFavoriteIdsSync()
+                allImages.filter { it.id in favoriteIds }
+            } else {
+                allImages
+            }
+
+            // If shuffle mode, shuffle the list and put initial image first
+            val imagesToUse = if (shuffleMode) {
+                val startImage = filteredImages.find { it.id == initialImageId }
+                val shuffled = filteredImages.shuffledRandom()
+                if (startImage != null) {
+                    val mutableList = shuffled.toMutableList()
+                    mutableList.remove(startImage)
+                    mutableList.add(0, startImage)
+                    mutableList
                 } else {
                     shuffled
                 }
-            } ?: run {
-                // Normal loading path
-                val dirPath = directoryPath
-                val fId = folderId
-                val allImages = when {
-                    dirPath != null -> {
-                        imageRepository.getImagesFromDirectory(dirPath)
-                    }
-                    fId == null -> {
-                        imageRepository.getAllImages()
-                    }
-                    else -> {
-                        imageRepository.getImagesByBucket(fId)
-                    }
-                }
-
-                if (showFavorites) {
-                    val favoriteIds = settingsRepository.getFavoriteIdsSync()
-                    allImages.filter { it.id in favoriteIds }
-                } else {
-                    allImages
-                }
+            } else {
+                filteredImages
             }
 
             val initialIndex = imagesToUse.indexOfFirst { it.id == initialImageId }.coerceAtLeast(0)
@@ -167,7 +175,7 @@ class PhotoViewerViewModel(
             folderId: Long?,
             showFavorites: Boolean,
             directoryPath: String? = null,
-            shuffledImages: List<ImageItem>? = null
+            shuffleMode: Boolean = false
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -177,7 +185,7 @@ class PhotoViewerViewModel(
                         set("folderId", folderId)
                         set("showFavorites", showFavorites)
                         set("directoryPath", directoryPath)
-                        set("shuffledImages", shuffledImages)
+                        set("shuffleMode", shuffleMode)
                     }
                     return PhotoViewerViewModel(
                         application,

@@ -36,7 +36,7 @@ data class PhotoViewerParams(
     val folderId: Long?,
     val showFavorites: Boolean,
     val directoryPath: String?,
-    val shuffledImages: List<ImageItem>? = null
+    val shuffleMode: Boolean = false
 )
 
 class MainActivity : ComponentActivity() {
@@ -89,13 +89,13 @@ fun PicBrowserOverlayApp(
                     sharedViewModel.reset()
                     showPhotoViewer = true
                 },
-                onDazzleMeClick = { shuffledList, startImageId, folderId, directoryPath ->
+                onDazzleMeClick = { startImageId, folderId, directoryPath ->
                     photoViewerParams = PhotoViewerParams(
                         imageId = startImageId,
                         folderId = folderId,
                         showFavorites = false,
                         directoryPath = directoryPath,
-                        shuffledImages = shuffledList
+                        shuffleMode = true
                     )
                     photoViewerKey++
                     sharedViewModel.reset()
@@ -131,7 +131,7 @@ fun PicBrowserOverlayApp(
                                 folderId = params.folderId,
                                 showFavorites = params.showFavorites,
                                 directoryPath = params.directoryPath,
-                                shuffledImages = params.shuffledImages,
+                                shuffleMode = params.shuffleMode,
                                 sharedViewModel = sharedViewModel,
                                 onNavigateBack = { deletedId ->
                                     if (deletedId != null) {
@@ -165,7 +165,7 @@ fun PicBrowserApp(
                     val dirPathParam = directoryPath?.let { android.net.Uri.encode(it) } ?: ""
                     navController.navigate("${Screen.PhotoViewer.route}/$imageId?folderId=$folderIdParam&showFavorites=false&directoryPath=$dirPathParam")
                 },
-                onDazzleMeClick = { _, _, _, _ -> },
+                onDazzleMeClick = { _, _, _ -> },
                 onNavigateToFavorites = {
                     navController.navigate(Screen.Favorites.route)
                 },

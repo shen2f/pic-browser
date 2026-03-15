@@ -39,10 +39,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.picbrowser.data.model.ImageItem
 import com.example.picbrowser.ui.components.CustomPhotoPager
 import com.example.picbrowser.ui.components.PhotoDetailSheet
 import com.example.picbrowser.ui.components.ZoomableImage
+import com.example.picbrowser.data.model.ImageItem
 import com.example.picbrowser.ui.viewmodel.PhotoViewerViewModel
 import com.example.picbrowser.ui.viewmodel.SharedTransitionViewModel
 
@@ -53,14 +53,14 @@ fun PhotoViewerScreen(
     folderId: Long?,
     showFavorites: Boolean = false,
     directoryPath: String? = null,
-    shuffledImages: List<ImageItem>? = null,
+    shuffleMode: Boolean = false,
     sharedViewModel: SharedTransitionViewModel,
     onNavigateBack: (Long?) -> Unit
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
     val viewModel: PhotoViewerViewModel = viewModel(
-        factory = PhotoViewerViewModel.Factory(application, imageId, folderId, showFavorites, directoryPath, shuffledImages)
+        factory = PhotoViewerViewModel.Factory(application, imageId, folderId, showFavorites, directoryPath, shuffleMode)
     )
     val uiState by viewModel.uiState.collectAsState()
     val transitionState by sharedViewModel.state.collectAsState()
@@ -69,8 +69,8 @@ fun PhotoViewerScreen(
     var deletedImageId by remember { mutableStateOf<Long?>(null) }
     var showMenuBar by remember { mutableStateOf(true) }
 
-    LaunchedEffect(imageId, folderId, showFavorites, directoryPath, shuffledImages) {
-        viewModel.reloadImages(imageId, folderId, showFavorites, directoryPath, shuffledImages)
+    LaunchedEffect(imageId, folderId, showFavorites, directoryPath, shuffleMode) {
+        viewModel.reloadImages(imageId, folderId, showFavorites, directoryPath, shuffleMode)
     }
 
     LaunchedEffect(uiState.images, uiState.currentIndex) {
