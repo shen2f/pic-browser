@@ -37,6 +37,7 @@ class PhotoViewerViewModel(
     private var initialImageId: Long = savedStateHandle["imageId"] ?: 0L
     private var showFavorites: Boolean = savedStateHandle["showFavorites"] ?: false
     private var directoryPath: String? = savedStateHandle["directoryPath"]
+    private var shuffledImages: List<ImageItem>? = savedStateHandle["shuffledImages"]
 
     init {
         loadImages()
@@ -46,14 +47,17 @@ class PhotoViewerViewModel(
         newImageId: Long,
         newFolderId: Long?,
         newShowFavorites: Boolean,
-        newDirectoryPath: String?
+        newDirectoryPath: String?,
+        newShuffledImages: List<ImageItem>? = null
     ) {
         if (newImageId != initialImageId || newFolderId != folderId ||
-            newShowFavorites != showFavorites || newDirectoryPath != directoryPath) {
+            newShowFavorites != showFavorites || newDirectoryPath != directoryPath ||
+            newShuffledImages != shuffledImages) {
             initialImageId = newImageId
             folderId = newFolderId
             showFavorites = newShowFavorites
             directoryPath = newDirectoryPath
+            shuffledImages = newShuffledImages
             loadImages()
         }
     }
@@ -62,40 +66,49 @@ class PhotoViewerViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
-            val dirPath = directoryPath
-            val fId = folderId
-            val allImages = when {
-                dirPath != null -> {
-                    // 从自定义目录加载
-                    imageRepository.getImagesFromDirectory(dirPath)
+            val imagesToUse = shuffledImages?.let { shuffled ->
+                // Use provided shuffled list, apply favorites filter if needed
+                if (showFavorites) {
+                    val favoriteIds = settingsRepository.getFavoriteIdsSync()
+                    shuffled.filter { it.id in favoriteIds }
+                } else {
+                    shuffled
                 }
-                fId == null -> {
-                    imageRepository.getAllImages()
+            } ?: run {
+                // Normal loading path
+                val dirPath = directoryPath
+                val fId = folderId
+                val allImages = when {
+                    dirPath != null -> {
+                        imageRepository.getImagesFromDirectory(dirPath)
+                    }
+                    fId == null -> {
+                        imageRepository.getAllImages()
+                    }
+                    else -> {
+                        imageRepository.getImagesByBucket(fId)
+                    }
                 }
-                else -> {
-                    imageRepository.getImagesByBucket(fId)
+
+                if (showFavorites) {
+                    val favoriteIds = settingsRepository.getFavoriteIdsSync()
+                    allImages.filter { it.id in favoriteIds }
+                } else {
+                    allImages
                 }
             }
 
-            // Then filter if needed
-            val filteredImages = if (showFavorites) {
-                val favoriteIds = settingsRepository.getFavoriteIdsSync()
-                allImages.filter { it.id in favoriteIds }
-            } else {
-                allImages
-            }
-
-            val initialIndex = filteredImages.indexOfFirst { it.id == initialImageId }.coerceAtLeast(0)
+            val initialIndex = imagesToUse.indexOfFirst { it.id == initialImageId }.coerceAtLeast(0)
 
             _uiState.value = _uiState.value.copy(
-                images = filteredImages,
+                images = imagesToUse,
                 initialIndex = initialIndex,
                 currentIndex = initialIndex,
                 isLoading = false
             )
 
-            if (filteredImages.isNotEmpty()) {
-                checkFavorite(filteredImages[initialIndex].id)
+            if (imagesToUse.isNotEmpty()) {
+                checkFavorite(imagesToUse[initialIndex].id)
             }
         }
     }
@@ -153,7 +166,8 @@ class PhotoViewerViewModel(
             imageId: Long,
             folderId: Long?,
             showFavorites: Boolean,
-            directoryPath: String? = null
+            directoryPath: String? = null,
+            shuffledImages: List<ImageItem>? = null
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -163,6 +177,7 @@ class PhotoViewerViewModel(
                         set("folderId", folderId)
                         set("showFavorites", showFavorites)
                         set("directoryPath", directoryPath)
+                        set("shuffledImages", shuffledImages)
                     }
                     return PhotoViewerViewModel(
                         application,

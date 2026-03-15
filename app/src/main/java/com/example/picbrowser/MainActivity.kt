@@ -27,6 +27,7 @@ import com.example.picbrowser.ui.navigation.Screen
 import com.example.picbrowser.ui.screens.FavoritesScreen
 import com.example.picbrowser.ui.screens.GridScreen
 import com.example.picbrowser.ui.screens.PhotoViewerScreen
+import com.example.picbrowser.data.model.ImageItem
 import com.example.picbrowser.ui.theme.PicBrowserTheme
 import com.example.picbrowser.ui.viewmodel.SharedTransitionViewModel
 
@@ -34,7 +35,8 @@ data class PhotoViewerParams(
     val imageId: Long,
     val folderId: Long?,
     val showFavorites: Boolean,
-    val directoryPath: String?
+    val directoryPath: String?,
+    val shuffledImages: List<ImageItem>? = null
 )
 
 class MainActivity : ComponentActivity() {
@@ -87,6 +89,18 @@ fun PicBrowserOverlayApp(
                     sharedViewModel.reset()
                     showPhotoViewer = true
                 },
+                onDazzleMeClick = { shuffledList, startImageId, folderId, directoryPath ->
+                    photoViewerParams = PhotoViewerParams(
+                        imageId = startImageId,
+                        folderId = folderId,
+                        showFavorites = false,
+                        directoryPath = directoryPath,
+                        shuffledImages = shuffledList
+                    )
+                    photoViewerKey++
+                    sharedViewModel.reset()
+                    showPhotoViewer = true
+                },
                 onNavigateToFavorites = {
                     useLegacyNavigation = true
                     navController.navigate(Screen.Favorites.route)
@@ -117,6 +131,7 @@ fun PicBrowserOverlayApp(
                                 folderId = params.folderId,
                                 showFavorites = params.showFavorites,
                                 directoryPath = params.directoryPath,
+                                shuffledImages = params.shuffledImages,
                                 sharedViewModel = sharedViewModel,
                                 onNavigateBack = { deletedId ->
                                     if (deletedId != null) {
@@ -150,6 +165,7 @@ fun PicBrowserApp(
                     val dirPathParam = directoryPath?.let { android.net.Uri.encode(it) } ?: ""
                     navController.navigate("${Screen.PhotoViewer.route}/$imageId?folderId=$folderIdParam&showFavorites=false&directoryPath=$dirPathParam")
                 },
+                onDazzleMeClick = { _, _, _, _ -> },
                 onNavigateToFavorites = {
                     navController.navigate(Screen.Favorites.route)
                 },

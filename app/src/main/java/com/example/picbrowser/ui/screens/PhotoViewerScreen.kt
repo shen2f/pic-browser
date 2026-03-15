@@ -53,13 +53,14 @@ fun PhotoViewerScreen(
     folderId: Long?,
     showFavorites: Boolean = false,
     directoryPath: String? = null,
+    shuffledImages: List<ImageItem>? = null,
     sharedViewModel: SharedTransitionViewModel,
     onNavigateBack: (Long?) -> Unit
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
     val viewModel: PhotoViewerViewModel = viewModel(
-        factory = PhotoViewerViewModel.Factory(application, imageId, folderId, showFavorites, directoryPath)
+        factory = PhotoViewerViewModel.Factory(application, imageId, folderId, showFavorites, directoryPath, shuffledImages)
     )
     val uiState by viewModel.uiState.collectAsState()
     val transitionState by sharedViewModel.state.collectAsState()
@@ -68,8 +69,8 @@ fun PhotoViewerScreen(
     var deletedImageId by remember { mutableStateOf<Long?>(null) }
     var showMenuBar by remember { mutableStateOf(true) }
 
-    LaunchedEffect(imageId, folderId, showFavorites, directoryPath) {
-        viewModel.reloadImages(imageId, folderId, showFavorites, directoryPath)
+    LaunchedEffect(imageId, folderId, showFavorites, directoryPath, shuffledImages) {
+        viewModel.reloadImages(imageId, folderId, showFavorites, directoryPath, shuffledImages)
     }
 
     LaunchedEffect(uiState.images, uiState.currentIndex) {

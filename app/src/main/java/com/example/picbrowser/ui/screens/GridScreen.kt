@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -67,12 +68,14 @@ import com.example.picbrowser.ui.components.FolderDrawer
 import com.example.picbrowser.ui.components.ImageGridItem
 import com.example.picbrowser.ui.components.SortSelector
 import com.example.picbrowser.ui.viewmodel.GridViewModel
+import com.example.picbrowser.util.shuffledRandom
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GridScreen(
     onImageClick: (Long, Long?, String?) -> Unit,
+    onDazzleMeClick: (List<ImageItem>, Long, Long?, String?) -> Unit,
     onNavigateToFavorites: () -> Unit,
     sharedViewModel: SharedTransitionViewModel? = null,
     gridState: LazyGridState = rememberLazyGridState(),
@@ -213,6 +216,32 @@ fun GridScreen(
                                     onSortTypeChanged = { viewModel.setSortType(it) },
                                     onSortDirectionToggled = { viewModel.toggleSortDirection() }
                                 )
+                            }
+
+                            // Dazzle me 按钮
+                            IconButton(
+                                onClick = {
+                                    if (uiState.images.isNotEmpty()) {
+                                        val shuffledList = uiState.images.shuffledRandom()
+                                        val startImage = shuffledList.first()
+                                        onDazzleMeClick(shuffledList, startImage.id, uiState.selectedFolderId, uiState.selectedDirectoryPath)
+                                    }
+                                },
+                                enabled = uiState.images.isNotEmpty()
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shuffle,
+                                        contentDescription = "Dazzle me",
+                                        tint = if (uiState.images.isNotEmpty()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                    )
+//                                    Spacer(modifier = Modifier.width(4.dp))
+//                                    Text(
+//                                        text = "Dazzle me",
+//                                        style = MaterialTheme.typography.labelMedium,
+//                                        color = if (uiState.images.isNotEmpty()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+//                                    )
+                                }
                             }
 
                             // 右侧：列数选择器
