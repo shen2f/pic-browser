@@ -52,7 +52,7 @@ import com.example.picbrowser.ui.viewmodel.FavoritesViewModel
 fun FavoritesScreen(
     onImageClick: (Long) -> Unit,
     onNavigateBack: () -> Unit,
-    shouldRefresh: Boolean = false,
+    deletedImageId: Long? = null,
     onRefreshConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -65,10 +65,10 @@ fun FavoritesScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var imageToDelete by remember { mutableStateOf<ImageItem?>(null) }
 
-    // 当从 PhotoViewer 返回且需要刷新时，重新加载图片
-    androidx.compose.runtime.LaunchedEffect(shouldRefresh) {
-        if (shouldRefresh) {
-            viewModel.loadFavorites()
+    // 当有图片从 PhotoViewer 删除时，立即从内存列表中移除
+    androidx.compose.runtime.LaunchedEffect(deletedImageId) {
+        deletedImageId?.let { id ->
+            viewModel.removeImageFromMemory(id)
             onRefreshConsumed()
         }
     }

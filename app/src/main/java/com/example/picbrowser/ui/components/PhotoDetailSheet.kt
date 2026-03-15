@@ -64,8 +64,14 @@ fun PhotoDetailSheet(
 
             DetailRow(
                 icon = Icons.Default.AccessTime,
-                label = "Date taken",
+                label = "拍摄时间",
                 value = formatDate(imageItem.dateTaken)
+            )
+
+            DetailRow(
+                icon = Icons.Default.AccessTime,
+                label = "修改时间",
+                value = formatDate(imageItem.dateModified)
             )
 
             DetailRow(

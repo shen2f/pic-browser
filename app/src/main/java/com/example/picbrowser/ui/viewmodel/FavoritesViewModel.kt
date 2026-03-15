@@ -67,8 +67,21 @@ class FavoritesViewModel(
         viewModelScope.launch {
             val success = imageRepository.deleteImage(imageItem)
             if (success) {
-                loadFavorites()
+                removeImageFromMemory(imageItem.id)
             }
+        }
+    }
+
+    /**
+     * 仅从内存列表中移除图片，不删除文件
+     * 用于 PhotoViewer 删除图片后立即更新 Favorites 列表
+     */
+    fun removeImageFromMemory(imageId: Long) {
+        val currentImages = _uiState.value.images.toMutableList()
+        val index = currentImages.indexOfFirst { it.id == imageId }
+        if (index >= 0) {
+            currentImages.removeAt(index)
+            _uiState.value = _uiState.value.copy(images = currentImages)
         }
     }
 

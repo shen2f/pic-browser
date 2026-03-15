@@ -75,6 +75,7 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATE_MODIFIED,
             MediaStore.Images.Media.DATE_ADDED,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.WIDTH,
@@ -97,6 +98,8 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val displayNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
             val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
@@ -109,12 +112,25 @@ class ImageRepository(private val contentResolver: ContentResolver) {
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     id
                 )
+
+                val dateTakenRaw = cursor.getLong(dateTakenColumn)
+                val dateModifiedRaw = cursor.getLong(dateModifiedColumn) * 1000  // DATE_MODIFIED 是秒，转毫秒
+                val dateAddedRaw = cursor.getLong(dateAddedColumn) * 1000      // DATE_ADDED 是秒，转毫秒
+
+                // 拍摄时间 fallback 策略: DATE_TAKEN -> DATE_MODIFIED -> DATE_ADDED
+                val finalDateTaken = when {
+                    dateTakenRaw > 0 -> dateTakenRaw
+                    dateModifiedRaw > 0 -> dateModifiedRaw
+                    else -> dateAddedRaw
+                }
+
                 images.add(
                     ImageItem(
                         id = id,
                         uri = uri,
                         displayName = cursor.getString(displayNameColumn) ?: "",
-                        dateTaken = cursor.getLong(dateTakenColumn),
+                        dateTaken = finalDateTaken,
+                        dateModified = dateModifiedRaw,
                         size = cursor.getLong(sizeColumn),
                         width = cursor.getInt(widthColumn),
                         height = cursor.getInt(heightColumn),
@@ -134,6 +150,7 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATE_MODIFIED,
             MediaStore.Images.Media.DATE_ADDED,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.WIDTH,
@@ -154,6 +171,8 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val displayNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
             val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
@@ -166,12 +185,25 @@ class ImageRepository(private val contentResolver: ContentResolver) {
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     id
                 )
+
+                val dateTakenRaw = cursor.getLong(dateTakenColumn)
+                val dateModifiedRaw = cursor.getLong(dateModifiedColumn) * 1000  // DATE_MODIFIED 是秒，转毫秒
+                val dateAddedRaw = cursor.getLong(dateAddedColumn) * 1000      // DATE_ADDED 是秒，转毫秒
+
+                // 拍摄时间 fallback 策略: DATE_TAKEN -> DATE_MODIFIED -> DATE_ADDED
+                val finalDateTaken = when {
+                    dateTakenRaw > 0 -> dateTakenRaw
+                    dateModifiedRaw > 0 -> dateModifiedRaw
+                    else -> dateAddedRaw
+                }
+
                 images.add(
                     ImageItem(
                         id = id,
                         uri = uri,
                         displayName = cursor.getString(displayNameColumn) ?: "",
-                        dateTaken = cursor.getLong(dateTakenColumn),
+                        dateTaken = finalDateTaken,
+                        dateModified = dateModifiedRaw,
                         size = cursor.getLong(sizeColumn),
                         width = cursor.getInt(widthColumn),
                         height = cursor.getInt(heightColumn),
@@ -270,6 +302,7 @@ class ImageRepository(private val contentResolver: ContentResolver) {
                         uri = android.net.Uri.fromFile(file),
                         displayName = file.name,
                         dateTaken = file.lastModified(),
+                        dateModified = file.lastModified(),
                         size = file.length(),
                         width = 0,
                         height = 0,
@@ -300,6 +333,8 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.DATE_ADDED,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.WIDTH,
             MediaStore.Images.Media.HEIGHT,
@@ -322,6 +357,8 @@ class ImageRepository(private val contentResolver: ContentResolver) {
             val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val displayNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val dateTakenColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+            val dateModifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val dateAddedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
             val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
@@ -334,12 +371,25 @@ class ImageRepository(private val contentResolver: ContentResolver) {
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     id
                 )
+
+                val dateTakenRaw = cursor.getLong(dateTakenColumn)
+                val dateModifiedRaw = cursor.getLong(dateModifiedColumn) * 1000  // DATE_MODIFIED 是秒，转毫秒
+                val dateAddedRaw = cursor.getLong(dateAddedColumn) * 1000      // DATE_ADDED 是秒，转毫秒
+
+                // 拍摄时间 fallback 策略: DATE_TAKEN -> DATE_MODIFIED -> DATE_ADDED
+                val finalDateTaken = when {
+                    dateTakenRaw > 0 -> dateTakenRaw
+                    dateModifiedRaw > 0 -> dateModifiedRaw
+                    else -> dateAddedRaw
+                }
+
                 images.add(
                     ImageItem(
                         id = id,
                         uri = uri,
                         displayName = cursor.getString(displayNameColumn) ?: "",
-                        dateTaken = cursor.getLong(dateTakenColumn),
+                        dateTaken = finalDateTaken,
+                        dateModified = dateModifiedRaw,
                         size = cursor.getLong(sizeColumn),
                         width = cursor.getInt(widthColumn),
                         height = cursor.getInt(heightColumn),

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
@@ -63,17 +64,18 @@ import com.example.picbrowser.ui.components.ColumnSizeSelector
 import com.example.picbrowser.ui.components.DirectoryPicker
 import com.example.picbrowser.ui.components.FolderDrawer
 import com.example.picbrowser.ui.components.ImageGridItem
+import com.example.picbrowser.ui.components.SortSelector
 import com.example.picbrowser.ui.viewmodel.GridViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GridScreen(
-    sharedViewModel: SharedTransitionViewModel? = null,
-    gridState: LazyGridState = rememberLazyGridState(),
     onImageClick: (Long, Long?, String?) -> Unit,
     onNavigateToFavorites: () -> Unit,
-    shouldRefresh: Boolean = false,
+    sharedViewModel: SharedTransitionViewModel? = null,
+    gridState: LazyGridState = rememberLazyGridState(),
+    deletedImageId: Long? = null,
     onRefreshConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -85,8 +87,16 @@ fun GridScreen(
     val drawerState = rememberDrawerState(androidx.compose.material3.DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    val transitionState by sharedViewModel?.state?.collectAsState() ?: mutableStateOf(null)
+    val transitionState by sharedViewModel?.state?.collectAsState() ?: remember { mutableStateOf(null) }
     val thumbnailPositions = remember { mutableMapOf<Long, androidx.compose.ui.geometry.Rect>() }
+
+    // 当有图片从 PhotoViewer 删除时，立即从内存列表中移除
+    LaunchedEffect(deletedImageId) {
+        deletedImageId?.let { id ->
+            viewModel.removeImageFromMemory(id)
+            onRefreshConsumed()
+        }
+    }
 
     LaunchedEffect(transitionState?.targetImageId, uiState.images) {
         val targetId = transitionState?.targetImageId ?: return@LaunchedEffect
@@ -101,20 +111,6 @@ fun GridScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var imageToDelete by remember { mutableStateOf<ImageItem?>(null) }
     var showDirectoryPicker by remember { mutableStateOf(false) }
-
-    // 当从 PhotoViewer 返回且需要刷新时，重新加载图片
-    LaunchedEffect(shouldRefresh) {
-        if (shouldRefresh) {
-            val selectedDirPath = uiState.selectedDirectoryPath
-            if (selectedDirPath != null) {
-                viewModel.loadImagesFromDirectory(selectedDirPath)
-            } else {
-                viewModel.loadImages(uiState.selectedFolderId)
-            }
-            viewModel.loadFolders()
-            onRefreshConsumed()
-        }
-    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -179,25 +175,46 @@ fun GridScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        val selectedFolder = uiState.folders.find { it.id == uiState.selectedFolderId }
-                        val selectedDirectory = uiState.customDirectories.find { it.path == uiState.selectedDirectoryPath }
-                        Text(
-                            selectedDirectory?.name
-                                ?: selectedFolder?.name
-                                ?: "All Photos"
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Open drawer")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 左侧：菜单按钮 + 文件夹名称
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(Icons.Default.Menu, contentDescription = "Open drawer")
+                            }
+                            val selectedFolder = uiState.folders.find { it.id == uiState.selectedFolderId }
+                            val selectedDirectory = uiState.customDirectories.find { it.path == uiState.selectedDirectoryPath }
+                            Text(
+                                selectedDirectory?.name
+                                    ?: selectedFolder?.name
+                                    ?: "All Photos",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            // 中间：排序选择器
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                SortSelector(
+                                    sortType = uiState.sortType,
+                                    sortDirection = uiState.sortDirection,
+                                    onSortTypeChanged = { viewModel.setSortType(it) },
+                                    onSortDirectionToggled = { viewModel.toggleSortDirection() }
+                                )
+                            }
+
+                            // 右侧：列数选择器
+                            ColumnSizeSelector(
+                                currentColumns = uiState.columns,
+                                onColumnsChange = { viewModel.setColumns(it) }
+                            )
                         }
                     },
-                    actions = {
-                        ColumnSizeSelector(
-                            currentColumns = uiState.columns,
-                            onColumnsChange = { viewModel.setColumns(it) }
-                        )
-                    },
+                    navigationIcon = {},
+                    actions = {},
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )

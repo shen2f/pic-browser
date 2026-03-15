@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.picbrowser.data.model.CustomDirectory
 import com.example.picbrowser.data.model.Folder
 import com.example.picbrowser.data.model.ImageItem
+import com.example.picbrowser.data.model.SortDirection
+import com.example.picbrowser.data.model.SortType
 import com.example.picbrowser.data.repository.ImageRepository
 import com.example.picbrowser.data.repository.SettingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +25,9 @@ data class GridUiState(
     val columns: Int = 3,
     val favoriteIds: Set<Long> = emptySet(),
     val customDirectories: List<CustomDirectory> = emptyList(),
-    val selectedDirectoryPath: String? = null
+    val selectedDirectoryPath: String? = null,
+    val sortType: SortType = SortType.DATE_MODIFIED,
+    val sortDirection: SortDirection = SortDirection.DESCENDING
 )
 
 class GridViewModel(
@@ -68,8 +72,9 @@ class GridViewModel(
             } else {
                 imageRepository.getImagesByBucket(folderId)
             }
+            val sortedImages = sortImages(images, _uiState.value.sortType, _uiState.value.sortDirection)
             _uiState.value = _uiState.value.copy(
-                images = images,
+                images = sortedImages,
                 isLoading = false
             )
         }
@@ -105,13 +110,7 @@ class GridViewModel(
         viewModelScope.launch {
             val success = imageRepository.deleteImage(imageItem)
             if (success) {
-                // 直接从当前列表中移除该图片，立即刷新 UI
-                val currentImages = _uiState.value.images.toMutableList()
-                val index = currentImages.indexOfFirst { it.id == imageItem.id }
-                if (index >= 0) {
-                    currentImages.removeAt(index)
-                    _uiState.value = _uiState.value.copy(images = currentImages)
-                }
+                removeImageFromMemory(imageItem.id)
 
                 // 如果是在自定义目录中，同时更新该自定义目录的信息
                 val currentPath = _uiState.value.selectedDirectoryPath
@@ -124,11 +123,21 @@ class GridViewModel(
                             settingsRepository.updateCustomDirectory(updatedDir.copy(id = existingDir.id))
                         }
                     }
-                } else {
-                    // 否则重新加载文件夹
-                    loadFolders()
                 }
             }
+        }
+    }
+
+    /**
+     * 仅从内存列表中移除图片，不删除文件
+     * 用于 PhotoViewer 删除图片后立即更新 Grid 列表
+     */
+    fun removeImageFromMemory(imageId: Long) {
+        val currentImages = _uiState.value.images.toMutableList()
+        val index = currentImages.indexOfFirst { it.id == imageId }
+        if (index >= 0) {
+            currentImages.removeAt(index)
+            _uiState.value = _uiState.value.copy(images = currentImages)
         }
     }
 
@@ -170,8 +179,9 @@ class GridViewModel(
                 selectedDirectoryPath = path
             )
             val images = imageRepository.getImagesFromDirectory(path)
+            val sortedImages = sortImages(images, _uiState.value.sortType, _uiState.value.sortDirection)
             _uiState.value = _uiState.value.copy(
-                images = images,
+                images = sortedImages,
                 isLoading = false
             )
         }
@@ -179,6 +189,42 @@ class GridViewModel(
 
     fun isCustomDirectorySelected(path: String): Boolean {
         return _uiState.value.selectedDirectoryPath == path
+    }
+
+    fun setSortType(sortType: SortType) {
+        _uiState.value = _uiState.value.copy(sortType = sortType)
+        val sortedImages = sortImages(_uiState.value.images, sortType, _uiState.value.sortDirection)
+        _uiState.value = _uiState.value.copy(images = sortedImages)
+    }
+
+    fun toggleSortDirection() {
+        val newDirection = if (_uiState.value.sortDirection == SortDirection.ASCENDING) {
+            SortDirection.DESCENDING
+        } else {
+            SortDirection.ASCENDING
+        }
+        _uiState.value = _uiState.value.copy(sortDirection = newDirection)
+        val sortedImages = sortImages(_uiState.value.images, _uiState.value.sortType, newDirection)
+        _uiState.value = _uiState.value.copy(images = sortedImages)
+    }
+
+    private fun sortImages(
+        images: List<ImageItem>,
+        sortType: SortType,
+        sortDirection: SortDirection
+    ): List<ImageItem> {
+        val comparator: Comparator<ImageItem> = when (sortType) {
+            SortType.DATE_TAKEN -> compareBy { it.dateTaken }
+            SortType.DATE_MODIFIED -> compareBy { it.dateModified }
+            SortType.NAME -> compareBy { it.displayName.lowercase() }
+            SortType.SIZE -> compareBy { it.size }
+        }
+
+        return if (sortDirection == SortDirection.DESCENDING) {
+            images.sortedWith(comparator.reversed())
+        } else {
+            images.sortedWith(comparator)
+        }
     }
 
     companion object {

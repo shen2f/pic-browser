@@ -61,7 +61,7 @@ fun PicBrowserOverlayApp(
     var showPhotoViewer by remember { mutableStateOf(false) }
     var photoViewerParams by remember { mutableStateOf<PhotoViewerParams?>(null) }
     var photoViewerKey by remember { mutableIntStateOf(0) }
-    var shouldRefreshGrid by remember { mutableStateOf(false) }
+    var deletedImageId by remember { mutableStateOf<Long?>(null) }
     val gridState = rememberLazyGridState()
 
     // 保留原来的导航用于 Favorites 页面
@@ -76,8 +76,6 @@ fun PicBrowserOverlayApp(
         Box(modifier = Modifier.fillMaxSize()) {
             // Grid 在底层
             GridScreen(
-                sharedViewModel = sharedViewModel,
-                gridState = gridState,
                 onImageClick = { imageId, folderId, directoryPath ->
                     photoViewerParams = PhotoViewerParams(
                         imageId = imageId,
@@ -93,9 +91,11 @@ fun PicBrowserOverlayApp(
                     useLegacyNavigation = true
                     navController.navigate(Screen.Favorites.route)
                 },
-                shouldRefresh = shouldRefreshGrid,
+                sharedViewModel = sharedViewModel,
+                gridState = gridState,
+                deletedImageId = deletedImageId,
                 onRefreshConsumed = {
-                    shouldRefreshGrid = false
+                    deletedImageId = null
                 }
             )
 
@@ -118,9 +118,9 @@ fun PicBrowserOverlayApp(
                                 showFavorites = params.showFavorites,
                                 directoryPath = params.directoryPath,
                                 sharedViewModel = sharedViewModel,
-                                onNavigateBack = { imageDeleted ->
-                                    if (imageDeleted) {
-                                        shouldRefreshGrid = true
+                                onNavigateBack = { deletedId ->
+                                    if (deletedId != null) {
+                                        deletedImageId = deletedId
                                     }
                                     showPhotoViewer = false
                                     sharedViewModel.reset()
@@ -153,9 +153,9 @@ fun PicBrowserApp(
                 onNavigateToFavorites = {
                     navController.navigate(Screen.Favorites.route)
                 },
-                shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("shouldRefresh") ?: false,
+                deletedImageId = backStackEntry.savedStateHandle.get<Long>("deletedImageId"),
                 onRefreshConsumed = {
-                    backStackEntry.savedStateHandle["shouldRefresh"] = false
+                    backStackEntry.savedStateHandle.remove<Long>("deletedImageId")
                 }
             )
         }
@@ -194,9 +194,9 @@ fun PicBrowserApp(
                 showFavorites = showFavorites,
                 directoryPath = directoryPath,
                 sharedViewModel = tempViewModel,
-                onNavigateBack = { imageDeleted ->
-                    if (imageDeleted) {
-                        navController.previousBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                onNavigateBack = { deletedId ->
+                    if (deletedId != null) {
+                        navController.previousBackStackEntry?.savedStateHandle?.set("deletedImageId", deletedId)
                     }
                     navController.popBackStack()
                 }
@@ -215,9 +215,9 @@ fun PicBrowserApp(
                         navController.popBackStack()
                     }
                 },
-                shouldRefresh = backStackEntry.savedStateHandle.get<Boolean>("shouldRefresh") ?: false,
+                deletedImageId = backStackEntry.savedStateHandle.get<Long>("deletedImageId"),
                 onRefreshConsumed = {
-                    backStackEntry.savedStateHandle["shouldRefresh"] = false
+                    backStackEntry.savedStateHandle.remove<Long>("deletedImageId")
                 }
             )
         }

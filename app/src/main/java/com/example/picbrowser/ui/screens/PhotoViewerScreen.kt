@@ -54,7 +54,7 @@ fun PhotoViewerScreen(
     showFavorites: Boolean = false,
     directoryPath: String? = null,
     sharedViewModel: SharedTransitionViewModel,
-    onNavigateBack: (Boolean) -> Unit
+    onNavigateBack: (Long?) -> Unit
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -65,7 +65,7 @@ fun PhotoViewerScreen(
     val transitionState by sharedViewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var imageToDelete by remember { mutableStateOf<ImageItem?>(null) }
-    var hasDeletedImage by remember { mutableStateOf(false) }
+    var deletedImageId by remember { mutableStateOf<Long?>(null) }
     var showMenuBar by remember { mutableStateOf(true) }
 
     LaunchedEffect(imageId, folderId, showFavorites, directoryPath) {
@@ -158,7 +158,7 @@ fun PhotoViewerScreen(
                                 .height(56.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = { onNavigateBack(hasDeletedImage) }) {
+                            IconButton(onClick = { onNavigateBack(deletedImageId) }) {
                                 Icon(
                                     imageVector = Icons.Default.ArrowBack,
                                     contentDescription = "Back",
@@ -244,10 +244,10 @@ fun PhotoViewerScreen(
                     onClick = {
                         viewModel.deleteImage(imageToDelete!!) { success ->
                             if (success) {
-                                hasDeletedImage = true
+                                deletedImageId = imageToDelete!!.id
                                 val currentImages = viewModel.uiState.value.images
                                 if (currentImages.isEmpty()) {
-                                    onNavigateBack(true)
+                                    onNavigateBack(deletedImageId)
                                 }
                             }
                         }

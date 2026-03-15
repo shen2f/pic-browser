@@ -7,10 +7,11 @@ A modern Android photo gallery app built with Jetpack Compose.
 - 📁 **Folder Navigation**: Browse photos by folders with a slide-out drawer
 - 📂 **Custom Directories**: Add and browse any custom folders on your device
 - 🖼️ **Grid View**: Adjustable grid size (2-6 columns)
+- 🔀 **Sorting**: Sort photos by date taken, date modified, file name, or file size (ascending/descending)
 - 👆 **Photo Viewer**: Swipe between photos, pinch-to-zoom, double-tap to zoom in/out, quick fling for fast switching, smooth animations without flickering, tap to toggle menu bar, drag down to dismiss
 - ❤️ **Favorites**: Mark and view favorite photos
 - 🗑️ **Delete**: Remove photos with confirmation (supports both MediaStore and File API)
-- 📋 **Photo Details**: View file name, date, size, and resolution
+- 📋 **Photo Details**: View file name, date taken, date modified, size, and resolution
 - 🎬 **GIF Support**: Animated GIF playback (including hidden directories)
 - 🎨 **Material Design 3**: Modern UI with dynamic theming
 
