@@ -54,6 +54,7 @@ import androidx.compose.runtime.setValue
 import com.example.picbrowser.ui.viewmodel.SharedTransitionViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.app.Application
@@ -86,6 +87,14 @@ fun GridScreen(
     val uiState by viewModel.uiState.collectAsState()
     val drawerState = rememberDrawerState(androidx.compose.material3.DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    // 监听屏幕方向变化
+    androidx.compose.runtime.LaunchedEffect(isLandscape) {
+        viewModel.setIsLandscape(isLandscape)
+    }
 
     val transitionState by sharedViewModel?.state?.collectAsState() ?: remember { mutableStateOf(null) }
     val thumbnailPositions = remember { mutableMapOf<Long, androidx.compose.ui.geometry.Rect>() }

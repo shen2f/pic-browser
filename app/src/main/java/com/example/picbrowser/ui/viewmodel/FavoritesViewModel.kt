@@ -18,6 +18,7 @@ data class FavoritesUiState(
     val images: List<ImageItem> = emptyList(),
     val isLoading: Boolean = true,
     val columns: Int = 3,
+    val isLandscape: Boolean = false,
     val favoriteIds: Set<Long> = emptySet()
 )
 
@@ -32,6 +33,20 @@ class FavoritesViewModel(
 
     init {
         loadFavorites()
+    }
+
+    fun setIsLandscape(isLandscape: Boolean) {
+        viewModelScope.launch {
+            val newColumns = if (isLandscape) {
+                settingsRepository.getLandscapeColumns()
+            } else {
+                settingsRepository.getPortraitColumns()
+            }
+            _uiState.value = _uiState.value.copy(
+                isLandscape = isLandscape,
+                columns = newColumns
+            )
+        }
     }
 
     fun loadFavorites() {
@@ -53,6 +68,13 @@ class FavoritesViewModel(
 
     fun setColumns(columns: Int) {
         _uiState.value = _uiState.value.copy(columns = columns)
+        viewModelScope.launch {
+            if (_uiState.value.isLandscape) {
+                settingsRepository.saveLandscapeColumns(columns)
+            } else {
+                settingsRepository.savePortraitColumns(columns)
+            }
+        }
     }
 
     fun toggleFavorite(imageId: Long) {

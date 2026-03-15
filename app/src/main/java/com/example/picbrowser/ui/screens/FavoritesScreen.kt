@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import android.app.Application
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -61,6 +62,15 @@ fun FavoritesScreen(
         factory = FavoritesViewModel.Factory(application)
     )
     val uiState by viewModel.uiState.collectAsState()
+
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    // 监听屏幕方向变化
+    androidx.compose.runtime.LaunchedEffect(isLandscape) {
+        viewModel.setIsLandscape(isLandscape)
+    }
+
     var longPressedImage by remember { mutableStateOf<ImageItem?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var imageToDelete by remember { mutableStateOf<ImageItem?>(null) }

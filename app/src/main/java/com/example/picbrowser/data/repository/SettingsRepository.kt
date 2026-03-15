@@ -20,6 +20,8 @@ class SettingsRepository(private val context: Context) {
 
     private val favoritesKey = stringPreferencesKey("favorite_image_ids")
     private val customDirectoriesKey = stringPreferencesKey("custom_directories")
+    private val portraitColumnsKey = stringPreferencesKey("portrait_columns")
+    private val landscapeColumnsKey = stringPreferencesKey("landscape_columns")
 
     // 收藏夹相关（保持原有功能）
     val favoriteIds: Flow<Set<Long>> = context.dataStore.data
@@ -160,6 +162,27 @@ class SettingsRepository(private val context: Context) {
                         ?.toSet()
                         ?: emptySet()
                 }
+        }
+    }
+
+    // 列数设置相关
+    suspend fun getPortraitColumns(): Int {
+        return context.dataStore.data.first()[portraitColumnsKey]?.toIntOrNull() ?: 3
+    }
+
+    suspend fun getLandscapeColumns(): Int {
+        return context.dataStore.data.first()[landscapeColumnsKey]?.toIntOrNull() ?: 5
+    }
+
+    suspend fun savePortraitColumns(columns: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[portraitColumnsKey] = columns.toString()
+        }
+    }
+
+    suspend fun saveLandscapeColumns(columns: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[landscapeColumnsKey] = columns.toString()
         }
     }
 }
